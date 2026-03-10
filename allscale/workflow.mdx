@@ -1,0 +1,54 @@
+---
+title: "Checkout Workflow"
+description: "Visual flow diagram of the AllScale checkout process"
+---
+
+<img width="3349" height="8192" alt="image" src="https://github.com/user-attachments/assets/3b467af3-9a78-48c1-a925-0fe8b3247aa9" />
+
+
+flowchart TB
+
+subgraph U["User"]
+  direction TB
+  U1["Tap Checkout USDT"]
+end
+
+subgraph FE["3rd-party Frontend"]
+  direction TB
+  C1["Trigger AllScale Checkout"]
+  C2["Open checkout\_url"]
+end
+
+subgraph BE["3rd-party Backend"]
+  direction TB
+  TP1["Create checkout request"]
+  TP2["POST /checkout-intents"]
+  TP3["Receive checkout\_url"]
+  TP4["Return url to frontend"]
+  TP5["Receive webhook"]
+end
+
+subgraph AS["AllScale Backend"]
+  direction TB
+  B1["Authenticate"]
+  B2["Validate payload"]
+  B3["Create checkout intent"]
+  B4["Generate checkout\_url"]
+  B5["Return url"]
+
+  B6["Receive payment completed"]
+  B7["Wait for on-chain confirmation"]
+  B8["Verify tx"]
+  B9["Mark intent confirmed"]
+  B10["Trigger webhook"]
+end
+
+subgraph FE2["AllScale Checkout Page"]
+  direction TB
+  F1["Render checkout UI"]
+  F2["User submits payment"]
+  F3["Notify backend"]
+end
+
+U1 --> C1 --> TP1 --> TP2 --> B1 --> B2 --> B3 --> B4 --> B5 --> TP3 --> TP4 --> C2 --> F1
+F1 --> F2 --> F3 --> B6 --> B7 --> B8 --> B9 --> B10 --> TP5

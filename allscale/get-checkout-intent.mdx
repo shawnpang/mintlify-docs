@@ -1,0 +1,188 @@
+---
+title: "Get Checkout Intent"
+description: "Retrieve the full details of a checkout intent including payment and on-chain transaction metadata"
+---
+
+AllScale Open API
+Version: v2
+Last updated: 2026-03-04
+Base Path: `/v1/checkout_intents`
+
+---
+
+## Overview
+
+The Checkout Intent Query API allows merchants to retrieve the **full details** of a checkout intent.
+
+This API is used to:
+
+- Fetch complete checkout intent information by `checkout_intent_id`
+- Display order, user, and payment details
+- Inspect on-chain transaction metadata after payment
+- Debug or reconcile payment lifecycle issues
+
+---
+
+## Important Design Notes
+
+- All enum values are represented as **integers** in API requests and responses
+- Monetary values involving stable coins are returned as **strings** to preserve precision
+- This endpoint returns a **structured object** in `payload`
+- Permission checks are enforced at the **store/business** level
+
+---
+
+## Authentication
+
+All requests must include the following headers:
+
+| Header      | Description               |
+|-------------|---------------------------|
+| X-API-Key   | API key                   |
+| X-Timestamp | Unix timestamp (seconds)  |
+| X-Nonce     | Unique request identifier |
+| X-Signature | HMAC signature            |
+
+### Notes
+
+- `X-Nonce` must be unique per request
+- `X-Timestamp` must be within the allowed time window
+- Signature must be generated using **raw request body bytes**
+- Requests are protected against replay attacks
+
+---
+
+## GET /v1/checkout\_intents/\{checkout\_intent\_id\}
+
+### Description
+
+Retrieve the full checkout intent object, including payment configuration, order metadata, and on-chain transaction details (if available).
+
+---
+
+### Request
+
+```
+GET /v1/checkout_intents/{checkout_intent_id}
+```
+
+#### Path Parameters
+
+| Parameter          | Type   | Required | Description                              |
+|--------------------|--------|----------|------------------------------------------|
+| checkout\_intent\_id | string | Yes      | AllScale checkout intent ObjectId string |
+
+#### Headers
+
+```
+X-API-Key: <your_api_key>
+X-Timestamp: <unix_timestamp>
+X-Nonce: <uuid>
+X-Signature: v1=<signature>
+```
+
+> Note: This is a GET request, so there is no request body.
+
+---
+
+## Successful Response
+
+```json
+{
+  "code": 0,
+  "payload": {
+    "all_scale_checkout_intent_id": "65c9d4e5a9f4e0d2b6a1e123",
+    "currency": 1,
+    "currency_symbol": "USD",
+    "amount_cents": 2500,
+    "chain_id": 1,
+    "amount_coins": "2.500000",
+    "coin_symbol": "USDT",
+    "coin_contract": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    "currency_rate": "1.000000",
+    "status": 20,
+    "order_id": "order_8899",
+    "order_description": "Premium subscription",
+    "user_id": "user_001",
+    "user_name": "Alice",
+    "tx_hash": "0xabc123...",
+    "tx_from": "0xSenderAddress",
+    "tx_to": "0xReceiverAddress",
+    "actual_paid_amount": "2.500000"
+  },
+  "error": null,
+  "request_id": "req_xxxxx"
+}
+```
+
+---
+
+## Response Fields
+
+### Top-Level Fields
+
+| Field      | Type           | Description            |
+|------------|----------------|------------------------|
+| code       | int            | 0 indicates success    |
+| payload    | object         | Checkout intent object |
+| error      | object \| null | Error object           |
+| request\_id | string         | Request identifier     |
+
+---
+
+### Payload — Checkout Intent Object
+
+| Field                        | Type           | Description                        |
+|------------------------------|----------------|------------------------------------|
+| all\_scale\_checkout\_intent\_id | string         | Checkout intent ID                 |
+| currency                     | int            | Fiat currency enum value           |
+| currency\_symbol              | string         | Fiat currency symbol (e.g. USD)    |
+| amount\_cents                 | int            | Amount in fiat cents               |
+| chain\_id                     | int \| null    | EIP-155 chain ID                   |
+| amount\_coins                 | string         | Amount in stable coin              |
+| coin\_symbol                  | string         | Stable coin symbol (USDT / USDC)   |
+| coin\_contract                | string \| null | Stable coin contract address       |
+| currency\_rate                | string         | Fiat → stable coin conversion rate |
+| status                       | int            | Checkout intent status enum value  |
+| order\_id                     | string \| null | Merchant order ID                  |
+| order\_description            | string \| null | Merchant order description         |
+| user\_id                      | string \| null | Merchant user ID                   |
+| user\_name                    | string \| null | Merchant user name                 |
+| error\_message                | string \| null | Error message (if failed)          |
+| tx\_hash                      | string \| null | On-chain transaction hash          |
+| tx\_from                      | string \| null | Transaction sender address         |
+| tx\_to                        | string         | Transaction receiver address       |
+| actual\_paid\_amount           | string \| null | Actual paid stable coin amount     |
+
+---
+
+## Possible Errors
+
+| Code  | Meaning                                                |
+|-------|--------------------------------------------------------|
+| 10001 | Validation error                                       |
+| 20001 | Missing authentication headers                         |
+| 20002 | Invalid signature                                      |
+| 30001 | Forbidden (no permission to view this checkout intent) |
+| 40001 | Rate limit exceeded                                    |
+| 50001 | Checkout intent not found                              |
+| 90000 | Internal server error, pls contact us                  |
+| 99999 | Unknown error, pls contact us                          |
+
+---
+
+## Notes
+
+- This endpoint enforces **store/business ownership** checks
+- Enum fields (such as `currency` and `status`) are returned as **integers only**
+- Decimal values are returned as **strings** to avoid precision loss
+- Always log `request_id` when debugging production issues
+- If you only need the status value, prefer
+  `GET /v1/checkout_intents/{checkout_intent_id}/status` for lower payload size
+
+---
+
+## Related APIs
+
+- `POST /v1/checkout_intents`
+- `GET /v1/checkout_intents/{checkout_intent_id}/status`

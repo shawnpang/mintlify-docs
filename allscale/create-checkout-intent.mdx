@@ -1,0 +1,362 @@
+---
+title: "Create Checkout Intent"
+description: "Create a checkout intent and obtain a hosted payment URL"
+---
+
+AllScale Open API
+Version: v2
+Last updated: 2026-02-24
+Base Path: `/v1/checkout_intents`
+
+---
+
+## Overview
+
+The Checkout Intent API allows merchants to create a checkout intent and obtain a hosted payment URL.
+
+This API is used to:
+
+- Create a checkout intent
+- Generate a hosted checkout URL
+- Specify fiat currency and amount
+- Receive stable-coin–based settlement
+
+---
+
+## Important Design Notes
+
+- All enum values are represented as **integers** in API requests and responses
+- API consumers must always send and receive **integer values**
+- Currently, only **USDT** is supported as the settlement stable coin
+
+---
+
+## Authentication
+
+All requests must include the following headers:
+
+| Header      | Description               |
+|-------------|---------------------------|
+| X-API-Key   | API key                   |
+| X-Timestamp | Unix timestamp (seconds)  |
+| X-Nonce     | Unique request identifier |
+| X-Signature | HMAC signature            |
+
+### Notes
+
+- `X-Nonce` must be unique per request
+- `X-Timestamp` must be within allowed time window
+- Signature must be generated using **raw request body bytes**
+- Requests are protected against replay attacks
+
+---
+
+## POST /v1/checkout\_intents/
+
+### Description
+
+Create a checkout intent and return a hosted checkout URL.
+
+---
+
+### Request
+
+POST /v1/checkout\_intents/
+
+#### Headers
+
+```
+X-API-Key: <your_api_key>
+X-Timestamp: <unix_timestamp>
+X-Nonce: <uuid>
+X-Signature: v1=<signature>
+Content-Type: application/json
+```
+
+#### Body Example
+
+```json
+{
+  "currency": 44,
+  "amount_cents": 100,
+  "order_id": "order_123",
+  "order_description": "Monthly subscription",
+  "user_id": "user_456",
+  "user_name": "Tom",
+  "extra": {
+    "source": "web"
+  }
+}
+```
+
+### Request Fields
+
+| Field             | Type           | Required | Description                               |
+|-------------------|----------------|----------|-------------------------------------------|
+| currency          | int            | Yes      | Fiat currency enum value (see Appendix A) |
+| amount\_cents     | int            | Yes      | Amount in cents                           |
+| order\_id         | string \| null | No       | Merchant order ID                         |
+| order\_description | string \| null | No       | Merchant order description                |
+| user\_id          | string \| null | No       | Merchant user ID                          |
+| user\_name        | string \| null | No       | Merchant user name                        |
+| extra             | object \| null | No       | Custom metadata                           |
+
+**Important**
+
+- `currency` must be an integer value
+- Do NOT pass `"USD"` or `"EUR"` strings
+
+---
+
+### Successful Response
+
+```json
+{
+  "code": 0,
+  "payload": {
+    "checkout_url": "https://checkout.allscale.io/abc123",
+    "allscale_checkout_intent_id": "65b2f3d0d2d9c0a1b2c3d4e5",
+    "amount_coins": "1.0000",
+    "stable_coin_type": 1,
+    "rate": "1.3500"
+  },
+  "error": null,
+  "request_id": "req_xxxxx"
+}
+```
+
+---
+
+### Response Fields
+
+| Field                               | Type           | Description            |
+|-------------------------------------|----------------|------------------------|
+| code                                | int            | 0 indicates success    |
+| payload.checkout\_url               | string         | Hosted checkout URL    |
+| payload.allscale\_checkout\_intent\_id | string         | Checkout intent ID     |
+| payload.amount\_coins               | string         | Stable coin amount     |
+| payload.stable\_coin\_type          | int            | Stable coin enum value |
+| payload.rate                        | string \| null | Exchange rate          |
+| error                               | object \| null | Error object           |
+| request\_id                         | string         | Request identifier     |
+
+---
+
+## Possible Errors
+
+| Code  | Meaning                        |
+|-------|--------------------------------|
+| 10001 | Validation error               |
+| 20001 | Missing authentication headers |
+| 20002 | Invalid signature              |
+| 30001 | Forbidden (IP not allowed)     |
+| 40001 | Rate limit exceeded            |
+
+---
+
+## Notes
+
+- All enum values are integers
+- Do not send string enum names
+- Nonce must be unique per request
+- Timestamp must be UTC
+- Always log `request_id` for debugging
+
+---
+
+## Appendix A — Currency Enum (IntEnum)
+
+| Value | Code | Currency                                |
+|------:|------|-----------------------------------------|
+|     1 | USD  | US Dollar                               |
+|     2 | AED  | United Arab Emirates Dirham             |
+|     3 | AFN  | Afghan Afghani                          |
+|     4 | ALL  | Albanian Lek                            |
+|     5 | AMD  | Armenian Dram                           |
+|     6 | ANG  | Netherlands Antillean Guilder           |
+|     7 | AOA  | Angolan Kwanza                          |
+|     8 | ARS  | Argentine Peso                          |
+|     9 | AUD  | Australian Dollar                       |
+|    10 | AWG  | Aruban Florin                           |
+|    11 | AZN  | Azerbaijani Manat                       |
+|    12 | BAM  | Bosnia and Herzegovina Convertible Mark |
+|    13 | BBD  | Barbadian Dollar                        |
+|    14 | BDT  | Bangladeshi Taka                        |
+|    15 | BGN  | Bulgarian Lev                           |
+|    16 | BHD  | Bahraini Dinar                          |
+|    17 | BIF  | Burundian Franc                         |
+|    18 | BMD  | Bermudian Dollar                        |
+|    19 | BND  | Brunei Dollar                           |
+|    20 | BOB  | Bolivian Boliviano                      |
+|    21 | BRL  | Brazilian Real                          |
+|    22 | BSD  | Bahamian Dollar                         |
+|    23 | BTN  | Bhutanese Ngultrum                      |
+|    24 | BWP  | Botswanan Pula                          |
+|    25 | BYN  | Belarusian Ruble                        |
+|    26 | BZD  | Belize Dollar                           |
+|    27 | CAD  | Canadian Dollar                         |
+|    28 | CDF  | Congolese Franc                         |
+|    29 | CHF  | Swiss Franc                             |
+|    30 | CLP  | Chilean Peso                            |
+|    31 | CNY  | Chinese Yuan                            |
+|    32 | COP  | Colombian Peso                          |
+|    33 | CRC  | Costa Rican Colón                       |
+|    34 | CUP  | Cuban Peso                              |
+|    35 | CVE  | Cape Verdean Escudo                     |
+|    36 | CZK  | Czech Koruna                            |
+|    37 | DJF  | Djiboutian Franc                        |
+|    38 | DKK  | Danish Krone                            |
+|    39 | DOP  | Dominican Peso                          |
+|    40 | DZD  | Algerian Dinar                          |
+|    41 | EGP  | Egyptian Pound                          |
+|    42 | ERN  | Eritrean Nakfa                          |
+|    43 | ETB  | Ethiopian Birr                          |
+|    44 | EUR  | Euro                                    |
+|    45 | FJD  | Fijian Dollar                           |
+|    46 | FKP  | Falkland Islands Pound                  |
+|    47 | FOK  | Faroese Króna                           |
+|    48 | GBP  | British Pound                           |
+|    49 | GEL  | Georgian Lari                           |
+|    50 | GGP  | Guernsey Pound                          |
+|    51 | GHS  | Ghanaian Cedi                           |
+|    52 | GIP  | Gibraltar Pound                         |
+|    53 | GMD  | Gambian Dalasi                          |
+|    54 | GNF  | Guinean Franc                           |
+|    55 | GTQ  | Guatemalan Quetzal                      |
+|    56 | GYD  | Guyanese Dollar                         |
+|    57 | HKD  | Hong Kong Dollar                        |
+|    58 | HNL  | Honduran Lempira                        |
+|    59 | HRK  | Croatian Kuna                           |
+|    60 | HTG  | Haitian Gourde                          |
+|    61 | HUF  | Hungarian Forint                        |
+|    62 | IDR  | Indonesian Rupiah                       |
+|    63 | ILS  | Israeli New Shekel                      |
+|    64 | IMP  | Isle of Man Pound                       |
+|    65 | INR  | Indian Rupee                            |
+|    66 | IQD  | Iraqi Dinar                             |
+|    67 | IRR  | Iranian Rial                            |
+|    68 | ISK  | Icelandic Króna                         |
+|    69 | JEP  | Jersey Pound                            |
+|    70 | JMD  | Jamaican Dollar                         |
+|    71 | JOD  | Jordanian Dinar                         |
+|    72 | JPY  | Japanese Yen                            |
+|    73 | KES  | Kenyan Shilling                         |
+|    74 | KGS  | Kyrgyzstani Som                         |
+|    75 | KHR  | Cambodian Riel                          |
+|    76 | KID  | Kiribati Dollar                         |
+|    77 | KMF  | Comorian Franc                          |
+|    78 | KRW  | South Korean Won                        |
+|    79 | KWD  | Kuwaiti Dinar                           |
+|    80 | KYD  | Cayman Islands Dollar                   |
+|    81 | KZT  | Kazakhstani Tenge                       |
+|    82 | LAK  | Lao Kip                                 |
+|    83 | LBP  | Lebanese Pound                          |
+|    84 | LKR  | Sri Lankan Rupee                        |
+|    85 | LRD  | Liberian Dollar                         |
+|    86 | LSL  | Lesotho Loti                            |
+|    87 | LYD  | Libyan Dinar                            |
+|    88 | MAD  | Moroccan Dirham                         |
+|    89 | MDL  | Moldovan Leu                            |
+|    90 | MGA  | Malagasy Ariary                         |
+|    91 | MKD  | Macedonian Denar                        |
+|    92 | MMK  | Myanmar Kyat                            |
+|    93 | MNT  | Mongolian Tögrög                        |
+|    94 | MOP  | Macanese Pataca                         |
+|    95 | MRU  | Mauritanian Ouguiya                     |
+|    96 | MUR  | Mauritian Rupee                         |
+|    97 | MVR  | Maldivian Rufiyaa                       |
+|    98 | MWK  | Malawian Kwacha                         |
+|    99 | MXN  | Mexican Peso                            |
+|   100 | MYR  | Malaysian Ringgit                       |
+|   101 | MZN  | Mozambican Metical                      |
+|   102 | NAD  | Namibian Dollar                         |
+|   103 | NGN  | Nigerian Naira                          |
+|   104 | NIO  | Nicaraguan Córdoba                      |
+|   105 | NOK  | Norwegian Krone                         |
+|   106 | NPR  | Nepalese Rupee                          |
+|   107 | NZD  | New Zealand Dollar                      |
+|   108 | OMR  | Omani Rial                              |
+|   109 | PAB  | Panamanian Balboa                       |
+|   110 | PEN  | Peruvian Sol                            |
+|   111 | PGK  | Papua New Guinean Kina                  |
+|   112 | PHP  | Philippine Peso                         |
+|   113 | PKR  | Pakistani Rupee                         |
+|   114 | PLN  | Polish Złoty                            |
+|   115 | PYG  | Paraguayan Guaraní                      |
+|   116 | QAR  | Qatari Riyal                            |
+|   117 | RON  | Romanian Leu                            |
+|   118 | RSD  | Serbian Dinar                           |
+|   119 | RUB  | Russian Ruble                           |
+|   120 | RWF  | Rwandan Franc                           |
+|   121 | SAR  | Saudi Riyal                             |
+|   122 | SBD  | Solomon Islands Dollar                  |
+|   123 | SCR  | Seychellois Rupee                       |
+|   124 | SDG  | Sudanese Pound                          |
+|   125 | SEK  | Swedish Krona                           |
+|   126 | SGD  | Singapore Dollar                        |
+|   127 | SHP  | Saint Helena Pound                      |
+|   128 | SLE  | Sierra Leonean Leone (new)              |
+|   129 | SLL  | Sierra Leonean Leone (old)              |
+|   130 | SOS  | Somali Shilling                         |
+|   131 | SRD  | Surinamese Dollar                       |
+|   132 | SSP  | South Sudanese Pound                    |
+|   133 | STN  | São Tomé and Príncipe Dobra             |
+|   134 | SYP  | Syrian Pound                            |
+|   135 | SZL  | Swazi Lilangeni                         |
+|   136 | THB  | Thai Baht                               |
+|   137 | TJS  | Tajikistani Somoni                      |
+|   138 | TMT  | Turkmenistani Manat                     |
+|   139 | TND  | Tunisian Dinar                          |
+|   140 | TOP  | Tongan Paʻanga                          |
+|   141 | TRY  | Turkish Lira                            |
+|   142 | TTD  | Trinidad and Tobago Dollar              |
+|   143 | TVD  | Tuvaluan Dollar                         |
+|   144 | TWD  | New Taiwan Dollar                       |
+|   145 | TZS  | Tanzanian Shilling                      |
+|   146 | UAH  | Ukrainian Hryvnia                       |
+|   147 | UGX  | Ugandan Shilling                        |
+|   148 | UYU  | Uruguayan Peso                          |
+|   149 | UZS  | Uzbekistani Som                         |
+|   150 | VES  | Venezuelan Bolívar                      |
+|   151 | VND  | Vietnamese Dong                         |
+|   152 | VUV  | Vanuatu Vatu                            |
+|   153 | WST  | Samoan Tālā                             |
+|   154 | XAF  | Central African CFA Franc               |
+|   155 | XCD  | East Caribbean Dollar                   |
+|   156 | XCG  | Caribbean Guilder                       |
+|   157 | XDR  | IMF Special Drawing Rights              |
+|   158 | XOF  | West African CFA Franc                  |
+|   159 | XPF  | CFP Franc                               |
+|   160 | YER  | Yemeni Rial                             |
+|   161 | ZAR  | South African Rand                      |
+|   162 | ZMW  | Zambian Kwacha                          |
+|   163 | ZWL  | Zimbabwe Dollar                         |
+
+---
+
+## Appendix B — StableCoin Enum (IntEnum)
+
+| Value | Code | Name            | Status      |
+|------:|------|-----------------|-------------|
+|     1 | USDT | Tether USD      | Supported   |
+|     2 | USDC | USD Coin        | Disabled    |
+|     3 | BUSD | Binance USD     | Disabled    |
+|     4 | DAI  | Dai             | Disabled    |
+|     5 | TUSD | TrueUSD        | Disabled    |
+|     6 | PAX  | Pax Dollar      | Disabled    |
+|     7 | GUSD | Gemini Dollar   | Disabled    |
+|     8 | USTC | TerraClassicUSD | Disabled    |
+|     9 | FRAX | Frax            | Disabled    |
+|    10 | EURS | Stasis Euro     | Disabled    |
+
+---
+
+**Current Behavior**
+
+All successful checkout intents will always return:
+
+```json
+"stable_coin_type": 1
+```
+
+which represents **USDT**.

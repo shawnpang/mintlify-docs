@@ -66,6 +66,41 @@
             ]
           }
         ]
+      },
+      {
+        "tab": "AllScale API",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "allscale/checkout-guide",
+              "allscale/checkout-guide-zh",
+              "allscale/workflow"
+            ]
+          },
+          {
+            "group": "Authentication & Security",
+            "pages": [
+              "allscale/authentication",
+              "allscale/response-signing",
+              "allscale/webhook-signing"
+            ]
+          },
+          {
+            "group": "Checkout Intent Routes",
+            "pages": [
+              "allscale/create-checkout-intent",
+              "allscale/get-checkout-intent",
+              "allscale/get-status"
+            ]
+          },
+          {
+            "group": "Testing",
+            "pages": [
+              "allscale/test-routes"
+            ]
+          }
+        ]
       }
     ],
     "global": {

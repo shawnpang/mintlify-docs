@@ -1,0 +1,258 @@
+---
+title: "API Authentication & Request Signing Guide"
+description: "HMAC-SHA256 request signing for AllScale Third-Party API authentication"
+---
+
+AllScale Third-Party API
+Version: v1
+Last updated: 2026-01
+
+---
+
+## Overview
+
+AllScale APIs use HMAC-SHA256 request signing to authenticate and authorize third-party requests.
+
+This mechanism provides:
+
+- Strong authentication (shared secret)
+- Replay-attack protection
+- Tamper-proof request integrity
+- Stateless verification
+- Enterprise-grade security
+
+Every API request must be signed using:
+
+- API Key
+- API Secret
+
+---
+
+## Credentials
+
+When your store or integration is created, you receive:
+
+| Field | Description |
+|------|-------------|
+| api_key | Public identifier |
+| api_secret | Secret key (shown once only) |
+
+Important:
+- The API secret is shown only once
+- It cannot be retrieved later
+- Store it securely
+- Treat it like a password or private key
+
+---
+
+## Required Request Headers
+
+| Header | Required | Description |
+|------|----------|-------------|
+| X-API-Key | Yes | Your API key |
+| X-Timestamp | Yes | Unix timestamp (seconds) |
+| X-Nonce | Yes | Random unique string |
+| X-Signature | Yes | HMAC signature |
+
+---
+
+## Request Signing Logic
+
+### Canonical String Format
+
+```
+METHOD
+PATH
+QUERY_STRING
+TIMESTAMP
+NONCE
+BODY_SHA256
+```
+
+Joined using newline characters.
+
+### Example
+
+```
+POST
+/v1/payments
+currency=USD
+1716501000
+b4d9a2a1-9c2b-4df4-8b8e-2a13a45fd321
+4e07408562bedb8b60ce05c1decfe3ad16b722309a7c4c5f64b1f4e48e8d8d69
+```
+
+---
+
+## Signature Algorithm
+
+Algorithm:
+```
+HMAC-SHA256
+```
+
+Encoding:
+```
+Base64
+```
+
+Formula:
+```
+signature = Base64(
+    HMAC_SHA256(api_secret, canonical_string)
+)
+```
+
+Header format:
+```
+X-Signature: v1=<signature>
+```
+
+---
+
+## JavaScript / Postman Example
+
+```javascript
+const API_KEY = pm.environment.get("API_KEY");
+const API_SECRET = (pm.environment.get("API_SECRET") || "").trim();
+
+async function hmacSha256Base64(key, msg) {
+    const enc = new TextEncoder();
+    const cryptoKey = await crypto.subtle.importKey(
+        "raw",
+        enc.encode(key),
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["sign"]
+    );
+
+    const sig = await crypto.subtle.sign("HMAC", cryptoKey, enc.encode(msg));
+    return btoa(String.fromCharCode(...new Uint8Array(sig)));
+}
+
+function sha256Hex(str) {
+    return CryptoJS.SHA256(str).toString(CryptoJS.enc.Hex);
+}
+
+const method = pm.request.method.toUpperCase();
+const path = pm.request.url.getPath();
+const query = pm.request.url.getQueryString() || "";
+const body = pm.request.body?.raw || "";
+
+const bodyHash = sha256Hex(body);
+const timestamp = Math.floor(Date.now() / 1000).toString();
+const nonce = crypto.randomUUID();
+
+const canonical = [
+    method,
+    path,
+    query,
+    timestamp,
+    nonce,
+    bodyHash
+].join("\n");
+
+const signature = await hmacSha256Base64(API_SECRET, canonical);
+
+pm.request.headers.upsert({ key: "X-API-Key", value: API_KEY });
+pm.request.headers.upsert({ key: "X-Timestamp", value: timestamp });
+pm.request.headers.upsert({ key: "X-Nonce", value: nonce });
+pm.request.headers.upsert({ key: "X-Signature", value: `v1=${signature}` });
+```
+
+---
+
+## Replay Protection
+
+All requests are protected using timestamp and nonce validation.
+
+Rules:
+- Timestamp must be within ±5 minutes
+- Each nonce can be used only once
+- Replayed requests are rejected
+
+---
+
+## IP Allowlist
+
+If configured, requests must originate from approved IP ranges.
+
+Examples:
+```
+192.168.1.0/24
+203.0.113.45/32
+```
+
+Empty allowlist means all IPs are allowed.
+
+---
+
+## Error Response Format
+
+```json
+{
+  "code": 20002,
+  "payload": null,
+  "error": {
+    "message": "Bad signature",
+    "details": {
+      "reason": "signature_mismatch"
+    }
+  },
+  "request_id": "req_xxx"
+}
+```
+
+### Error Codes
+
+| Code | Meaning |
+|------|--------|
+| 20001 | Missing authentication headers |
+| 20002 | Invalid signature |
+| 30001 | Forbidden |
+| 40001 | Rate limit exceeded |
+| 90000 | Internal server error |
+
+---
+
+## Rate Limiting
+
+Requests may be rate-limited.
+
+Example response:
+
+```json
+{
+  "code": 40001,
+  "payload": null,
+  "error": {
+    "message": "Rate limit exceeded"
+  },
+  "request_id": "req_xxx"
+}
+```
+
+---
+
+## Debugging Tips
+
+| Issue | Fix |
+|------|-----|
+| Body mismatch | Use raw JSON |
+| Query mismatch | Ensure order matches |
+| Wrong secret | Use original secret |
+| Timestamp drift | Sync system clock |
+| Nonce reused | Generate a new one |
+| CryptoJS | Use Web Crypto API |
+
+---
+
+## Best Practices
+
+- Always use HTTPS
+- Use UTC timestamps
+- Store secrets securely
+- Rotate secrets regularly
+- Log request IDs
+- Never expose secrets in frontend code
+- Never reuse nonces

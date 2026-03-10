@@ -1,0 +1,66 @@
+---
+title: "AllScale Checkout Product — User & Integration Guide"
+description: "End user flow, merchant dashboard, and developer integration guide for AllScale Checkout"
+---
+
+## 1. End User Flow
+
+### 1.1 Checkout Page
+
+After selecting items on the merchant's app or website, choose **Pay via AllScale**. The merchant's system will call the API to create a Checkout Intent, and the user will be redirected to the AllScale checkout page. The merchant's logo and store name will be displayed at the top, with order description, order ID, and payment amount clearly shown.
+
+---
+
+### 1.2 Payment Methods
+
+#### AllScale Pay
+
+After logging into your AllScale account, your wallet balance will be displayed on the checkout page. Select a chain with sufficient balance, review and confirm the amount and gas fee, then approve the payment.
+
+
+#### Plugin Wallet
+
+No AllScale account? Connect MetaMask, Trust Wallet or any other crypto wallet, confirm the transaction in your wallet, then the payment is completed.
+
+
+---
+
+### 1.3 Payment Complete
+
+Once the transaction is confirmed on-chain, the checkout page will show **"Fund Sent"** with transaction details. Users can then return to the merchant's page in one tap.
+
+---
+
+## 2. Merchant Dashboard
+
+### 2.1 Set Up Store
+
+Contact the AllScale BD team to activate your merchant account and set up your **API Key & Secret**. Log into the dashboard, configure your store's name under the **Commerce** section, then enter your **Webhook URL** to complete the setup.
+
+
+---
+
+### 2.2 Order Management & Reconciliation
+
+All Checkout orders are listed in reverse chronological order, along with order ID, amount, time, and latest status. You can easily filter orders by status or other metrics.
+
+You will also receive real-time email notifications for every created order, each containing order ID, payment amount, fiat equivalent, transaction hash, and other info.
+
+Your store's **daily and monthly summary reports** will be sent automatically to your email with a downloadable CSV for easy reconciliation.
+
+
+---
+
+## 3. Developer Integration
+
+For detailed API documentation and the Quick Start Guide, please visit:
+
+[AllScale Third-Party API Documentation → Quick Start Guide](https://github.com/allscale-io/AllScale_Third-Party_API_Doc?tab=readme-ov-file#quick-start-guide)
+
+---
+
+## 4. Document History
+
+| Version | Date       | Notes                                          |
+| ------- | ---------- | ---------------------------------------------- |
+| v1.0    | 2026.02.09 | Gamma test release, full MVP feature coverage  |

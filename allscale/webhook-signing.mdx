@@ -1,0 +1,271 @@
+---
+title: "Webhook Callback Signing & Payload Guide"
+description: "HMAC-SHA256 webhook authentication, payload structure, and verification flow"
+---
+
+**AllScale Open API**
+**Version:** v1
+**Last Updated:** 2026-02-11
+
+---
+
+## Overview
+
+AllScale delivers event notifications to your server via **Webhook
+callbacks**.
+
+Each webhook request is authenticated using **HMAC-SHA256 request
+signing**, providing:
+
+- Sender authentication (shared secret)
+- Payload integrity (tamper-proof)
+- Replay attack protection (timestamp + nonce)
+- Stateless verification (no session required)
+
+Webhook payloads are plaintext JSON (not encrypted).
+
+---
+
+## Credentials
+
+When your integration/store is created, you receive:
+
+| Field      | Description                                |
+|------------|--------------------------------------------|
+| api\_key    | Public identifier                          |
+| api\_secret | Secret key used for signature verification |
+
+### Important Notes
+
+- `api_secret` is shown only once
+- It cannot be retrieved again
+- Store it securely
+- Treat it like a password or private key
+
+---
+
+## Webhook Request
+
+### Method
+
+```http
+POST
+```
+
+### Content-Type
+
+```http
+application/json
+```
+
+### Required Headers
+
+| Header              | Description              |
+|---------------------|--------------------------|
+| X-API-Key           | API key                  |
+| X-Webhook-Id        | Unique webhook ID        |
+| X-Webhook-Timestamp | Unix timestamp(seconds)  |
+| X-Webhook-Nonce     | Unique per-request nonce |
+| X-Webhook-Signature | HMAC signature           |
+
+---
+
+## Signature Header Format
+
+```http
+X-Webhook-Signature: v1=<signature>
+```
+
+---
+
+## Replay Protection
+
+To prevent replay attacks:
+
+### Requirements
+
+- Timestamp must be within **±5 minutes**
+- Each nonce must be used **only once**
+
+### Recommended Implementation
+
+- Store `nonce` in Redis
+- TTL: **600 seconds**
+- Reject duplicate nonces
+
+---
+
+## Canonical String (v1)
+
+Webhook signatures are generated using a canonical string.
+
+### Canonical Format
+
+```text
+allscale:webhook:v1
+METHOD
+PATH
+QUERY_STRING
+WEBHOOK_ID
+TIMESTAMP
+NONCE
+BODY_SHA256
+```
+
+---
+
+## Field Description
+
+| Field        | Description                  |
+|--------------|------------------------------|
+| METHOD       | HTTP method (uppercase)      |
+| PATH         | URL path only                |
+| QUERY\_STRING | Query string without `?`     |
+| WEBHOOK\_ID   | From `X-Webhook-Id`          |
+| TIMESTAMP    | From `X-Webhook-Timestamp`   |
+| NONCE        | From `X-Webhook-Nonce`       |
+| BODY\_SHA256  | SHA256 hex of raw body bytes |
+
+**Important**
+
+`BODY_SHA256` must be calculated from the **raw request body bytes**,
+**before JSON parsing or re-serialization**.
+
+---
+
+## Signature Algorithm
+
+### Algorithm
+
+```text
+HMAC-SHA256
+```
+
+### Encoding
+
+```text
+Base64
+```
+
+### Formula
+
+```text
+signature = Base64(
+  HMAC_SHA256(api_secret, canonical_string_bytes)
+)
+```
+
+---
+
+## Header Example
+
+```
+X-Webhook-Signature: v1=<signature>
+```
+
+---
+
+## Webhook Payload
+
+The request body sent by AllScale is **exactly** the following JSON
+structure.
+
+## JSON Field Definitions
+
+| Field                        | Type           | Required | Description                                                                           |
+|------------------------------|----------------|----------|---------------------------------------------------------------------------------------|
+| all\_scale\_transaction\_id     | string         | Yes      | AllScale transaction ID for this payment/transfer                                     |
+| all\_scale\_checkout\_intent\_id | string         | Yes      | AllScale checkout intent ID associated with the payment                               |
+| webhook\_id                   | string         | Yes      | Unique webhook ID (must match `X-Webhook-Id`)                                         |
+| amount\_cents                 | integer        | Yes      | Amount in fiat cents (e.g., $12.34 → `1234`)                                          |
+| currency                     | integer        | Yes      | Currency enum value (int). Must be interpreted using AllScale Currency enum mapping   |
+| currency\_symbol              | string         | Yes      | Fiat currency symbol (e.g., `USD`, `CAD`, `CNY`)                                      |
+| amount\_coins                 | string         | Yes      | Stablecoin amount as a **decimal string** (to avoid float issues), e.g. `"12.340000"` |
+| coin\_contract\_address        | string         | Yes      | Official ERC-20 token contract address                                                |
+| coin\_symbol                  | string         | Yes      | Stablecoin symbol (e.g., `USDT`, `USDC`)                                              |
+| chain\_id                     | integer        | Yes      | EIP-155 chainId identifying the EVM network (https://chainid.network/)                |
+| tx\_hash                      | string         | Yes      | On-chain transaction hash                                                             |
+| tx\_from                      | string         | Yes      | Sender wallet address                                                                 |
+| user\_id                      | string \| null | No       | Optional merchant/user identifier                                                     |
+| order\_id                     | string \| null | No       | Optional merchant order identifier                                                    |
+| user\_name                    | string \| null | No       | Optional customer/user display name                                                   |
+| extra\_obj                    | object \| null | No       | Optional arbitrary JSON object with extra fields                                      |
+
+## Actual Webhook Body Example (Matches Real Structure)
+
+```json
+{
+  "all_scale_transaction_id": "txn_123",
+  "all_scale_checkout_intent_id": "chk_456",
+  "webhook_id": "whk_84f12a8d",
+
+  "amount_cents": 1234,
+  "currency": 1,
+  "currency_symbol": "USD",
+
+  "amount_coins": "12.340000",
+  "coin_contract_address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+  "coin_symbol": "USDT",
+
+  "chain_id": 1,
+  "tx_hash": "0x...",
+  "tx_from": "0x...",
+
+  "user_id": "user_001",
+  "order_id": "order_8899",
+  "user_name": "Alice",
+  "extra_obj": {
+    "source": "mobile",
+    "note": "promo-applied"
+  }
+}
+```
+
+---
+
+## Verification Flow (Your Server Side)
+
+1. Extract headers
+2. Validate timestamp (±300 seconds)
+3. Validate nonce (store with TTL)
+4. Read raw request body bytes (before parsing JSON)
+5. Compute SHA256 of raw body
+6. Rebuild canonical string
+7. Compute expected signature
+8. Timing-safe compare
+9. Only after verification → process payload
+
+---
+
+## Response Expectations
+
+Your endpoint should respond:
+
+- `200 OK` if processed successfully
+- Non-200 if rejected (signature invalid, timestamp invalid, etc.)
+
+AllScale will log the HTTP status and may retry depending on configured
+policy.
+
+---
+
+## Best Practices
+
+- Always verify `X-Webhook-Signature` before processing
+- Validate timestamp within ±5 minutes
+- Cache nonce for replay protection
+- Use idempotency via `webhook_id`
+- Convert `amount_coins` using Decimal (not float)
+- Never log secrets or signatures
+
+---
+
+## Troubleshooting
+
+| Issue              | Cause            | Fix                                         |
+|--------------------|------------------|---------------------------------------------|
+| Signature mismatch | Body modified    | Use raw bytes exactly as received           |
+| Signature mismatch | Wrong path/query | Use the exact request path and query string |
+| Signature mismatch | Wrong secret     | Verify correct `api_secret`                 |
+| Timestamp rejected | Clock drift      | Sync server time (NTP)                      |
+| Replay rejected    | Nonce reused     | Generate unique nonce; store with TTL       |

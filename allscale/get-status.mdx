@@ -1,0 +1,144 @@
+---
+title: "Get Checkout Intent Status"
+description: "Query the current status of a checkout intent by its ID"
+---
+
+AllScale Open API
+Version: v2
+Last updated: 2026-02-24
+Base Path: `/v1/checkout_intents`
+
+---
+
+## Overview
+
+The Checkout Intent Status API allows merchants to query the **current status** of a checkout intent.
+
+This API is used to:
+
+- Retrieve the checkout intent status by `checkout_intent_id`
+- Poll status after creating a checkout intent and redirecting users to hosted checkout
+
+---
+
+## Important Design Notes
+
+- All enum values are represented as **integers** in API requests and responses
+- API consumers must always send and receive **integer values**
+- This endpoint returns **only** the status integer (in `payload`)
+
+---
+
+## Authentication
+
+All requests must include the following headers:
+
+| Header      | Description               |
+|-------------|---------------------------|
+| X-API-Key   | API key                   |
+| X-Timestamp | Unix timestamp (seconds)  |
+| X-Nonce     | Unique request identifier |
+| X-Signature | HMAC signature            |
+
+### Notes
+
+- `X-Nonce` must be unique per request
+- `X-Timestamp` must be within allowed time window
+- Signature must be generated using **raw request body bytes**
+- Requests are protected against replay attacks
+
+---
+
+## GET /v1/checkout\_intents/\{checkout\_intent\_id\}/status
+
+### Description
+
+Get the checkout intent status as an integer.
+
+---
+
+### Request
+
+GET /v1/checkout\_intents/\{checkout\_intent\_id\}/status
+
+#### Path Parameters
+
+| Parameter          | Type   | Required | Description                              |
+|--------------------|--------|----------|------------------------------------------|
+| checkout\_intent\_id | string | Yes      | AllScale checkout intent ObjectId string |
+
+#### Headers
+
+```
+X-API-Key: <your_api_key>
+X-Timestamp: <unix_timestamp>
+X-Nonce: <uuid>
+X-Signature: v1=<signature>
+```
+
+> Note: This is a GET request, so there is no request body.
+
+---
+
+### Successful Response
+
+```json
+{
+  "code": 0,
+  "payload": 2,
+  "error": null,
+  "request_id": "req_xxxxx"
+}
+```
+
+- `payload` is the **checkout intent status integer**.
+
+---
+
+### Response Fields
+
+| Field      | Type           | Description                       |
+|------------|----------------|-----------------------------------|
+| code       | int            | 0 indicates success               |
+| payload    | int            | Checkout intent status enum value |
+| error      | object \| null | Error object                      |
+| request\_id | string         | Request identifier                |
+
+---
+
+## Possible Errors
+
+| Code  | Meaning                                                |
+|-------|--------------------------------------------------------|
+| 10001 | Validation error                                       |
+| 20001 | Missing authentication headers                         |
+| 20002 | Invalid signature                                      |
+| 30001 | Forbidden (no permission to view this checkout intent) |
+| 40001 | Rate limit exceeded                                    |
+| 50001 | Checkout intent not found                              |
+| 90000 | Internal server error, pls contact us                  |
+| 99999 | Unknown error, pls contact us                          |
+
+---
+
+## Notes
+
+- This endpoint enforces permission checks: the checkout intent must belong to the authenticated store/business context.
+- Always log `request_id` for debugging.
+- Since `payload` is an int, do not expect `payload.status` or other nested fields.
+
+---
+
+## Appendix — Checkout Intent Status Enum
+
+| **Value** | **Name**             | **Meaning**                                          | **Terminal** |
+|-----------|----------------------|------------------------------------------------------|--------------|
+| -1        | FAILED               | Checkout failed due to internal or processing error  | Yes          |
+| -2        | REJECTED             | Rejected by KYT (Know Your Transaction) checks       | Yes          |
+| -3        | UNDERPAID            | Paid amount is less than required                    | Yes          |
+| -4        | CANCELED             | User manually canceled the checkout                  | Yes          |
+| 1         | CREATED              | Checkout intent created, not yet viewed by user      | No           |
+| 2         | VIEWED               | Hosted checkout page has been opened by the user     | No           |
+| 3         | TEMP\_WALLET\_RECEIVED | Temporary deposit wallet assigned (KYT flow only)    | No           |
+| 10        | ON\_CHAIN             | On-chain transaction detected, awaiting confirmation | No           |
+| 20        | CONFIRMED            | Payment confirmed successfully on-chain              | Yes          |

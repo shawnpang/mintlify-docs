@@ -1,0 +1,224 @@
+---
+title: "Test API Documentation"
+description: "Endpoints for verifying API authentication, request signing, and error handling"
+---
+
+Version: v1
+Base Path: `/v1/test`
+
+---
+
+## Overview
+
+The Test API provides endpoints used to verify:
+
+- API authentication
+- Request signing
+- Replay protection
+- Error handling behavior
+- JSON body hashing and parsing
+
+All endpoints require valid authentication using the HMAC-based signing mechanism.
+
+---
+
+## Authentication
+
+All requests must include the following headers:
+
+| Header | Description |
+|------|-------------|
+| X-API-Key | API key |
+| X-Timestamp | Unix timestamp (seconds) |
+| X-Nonce | Unique request identifier |
+| X-Signature | HMAC signature |
+
+Requests missing any of these headers will be rejected.
+
+---
+
+## GET /v1/test/ping
+
+### Description
+
+Health-check endpoint used to verify:
+
+- API connectivity
+- Signature correctness
+- Authentication configuration
+
+### Request
+
+```
+GET /v1/test/ping
+```
+
+Headers:
+
+```
+X-API-Key: <your_api_key>
+X-Timestamp: <unix_timestamp>
+X-Nonce: <uuid>
+X-Signature: v1=<signature>
+```
+
+### Successful Response
+
+```json
+{
+  "code": 0,
+  "payload": {
+    "pong": "ok"
+  },
+  "error": null,
+  "request_id": "req_xxxxx"
+}
+```
+
+### Response Fields
+
+| Field | Description |
+|------|-------------|
+| code | 0 indicates success |
+| payload.pong | Always returns "ok" |
+| error | Always null |
+| request_id | Unique request identifier |
+
+### Possible Errors
+
+| Code | Meaning |
+|------|--------|
+| 20001 | Missing authentication headers |
+| 20002 | Invalid signature |
+| 30001 | Forbidden (IP not allowed) |
+| 40001 | Rate limit exceeded |
+
+---
+
+## GET /v1/test/fail
+
+### Description
+
+This endpoint always returns a validation error.
+It is used to test client-side error handling and error parsing.
+
+### Request
+
+```
+GET /v1/test/fail
+```
+
+Headers:
+
+```
+X-API-Key: <your_api_key>
+X-Timestamp: <unix_timestamp>
+X-Nonce: <uuid>
+X-Signature: v1=<signature>
+```
+
+### Error Response
+
+```json
+{
+  "code": 10001,
+  "payload": null,
+  "error": {
+    "message": "Validation error",
+    "details": {}
+  },
+  "request_id": "req_xxxxx"
+}
+```
+
+### Error Code
+
+| Code | Meaning |
+|------|--------|
+| 10001 | Validation error |
+
+---
+
+## POST /v1/test/post
+
+### Description
+
+Echo test endpoint. Used to verify:
+
+- Request signing
+- Body hashing
+- JSON parsing
+- Response format
+
+### Request
+
+```
+POST /v1/test/post
+```
+
+Headers:
+
+```
+X-API-Key: <your_api_key>
+X-Timestamp: <unix_timestamp>
+X-Nonce: <uuid>
+X-Signature: v1=<signature>
+Content-Type: application/json
+```
+
+Body (example):
+
+```json
+{
+  "everything": "is_fine"
+}
+```
+
+### Successful Response
+
+```json
+{
+  "code": 0,
+  "payload": {
+    "your_request_body": {
+      "everything": "is_fine"
+    }
+  },
+  "error": null,
+  "request_id": "req_xxxxx"
+}
+```
+
+### Notes
+
+- The request body may include any valid JSON object.
+- The response returns the request body under `payload.your_request_body`.
+
+### Possible Errors
+
+| Code | Meaning |
+|------|--------|
+| 20001 | Missing authentication headers |
+| 20002 | Invalid signature |
+| 30001 | Forbidden (IP not allowed) |
+| 40001 | Rate limit exceeded |
+| 10001 | Validation error (invalid JSON body) |
+
+---
+
+## Usage Recommendations
+
+- Use `/v1/test/ping` to verify authentication setup
+- Use `/v1/test/post` to verify body signing (hashing) and JSON parsing
+- Use `/v1/test/fail` to test error parsing
+- Always log `request_id` for debugging
+- Ensure timestamps are in UTC
+- Never reuse nonces
+
+---
+
+## Notes
+
+- All test endpoints require valid authentication
+- Requests are subject to replay protection
+- Responses follow the standard API response format
